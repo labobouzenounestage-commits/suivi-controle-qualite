@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suivi quotidien des contrôles qualité — Laboratoire</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="auth-gate" id="authGate">
+ <div class="auth-shell">
+  <div class="auth-brand">
+   <div><div class="brand-icon">🧪</div><h1>Suivi intelligent des contrôles qualité</h1><p>Laboratoire d'analyses médicales<br>Liste quotidienne · Historique · Tableau de bord</p></div>
+   <small>Accès personnel — les comptes employés sont activés par le responsable.</small>
+  </div>
+  <div class="auth-form">
+   <h2 id="authTitle">Connexion</h2><p class="sub" id="authSubtitle">Connectez-vous avec labo@123 (responsable) ou votre adresse e-mail.</p>
+   <div class="auth-switch no-print"><button class="primary" id="showLogin">Connexion</button><button class="secondary" id="showRegister">Créer un compte</button></div>
+   <div id="authMessage" aria-live="polite"></div>
+   <form id="loginForm">
+    <div class="field"><label for="loginUser">Nom d’utilisateur ou e-mail</label><input id="loginUser" autocomplete="username" required placeholder="labo@123 ou adresse e-mail"></div>
+    <div class="field"><label for="loginPass">Mot de passe</label><input id="loginPass" type="password" autocomplete="current-password" required></div>
+    <button class="primary" style="width:100%;margin-top:6px" type="submit">Se connecter</button>
+   </form>
+   <form id="registerForm" class="hidden">
+    <div class="field"><label for="regFirst">Prénom</label><input id="regFirst" required autocomplete="given-name"></div>
+    <div class="field"><label for="regLast">Nom</label><input id="regLast" required autocomplete="family-name"></div>
+    <div class="field"><label for="regEmail">E-mail</label><input id="regEmail" type="email" required autocomplete="email"></div>
+    <div class="field"><label for="regPass">Créer un mot de passe (8 caractères minimum)</label><input id="regPass" type="password" minlength="8" required autocomplete="new-password"></div>
+    <button class="primary" style="width:100%;margin-top:6px" type="submit">Envoyer la demande d’activation</button>
+   </form>
+   <p class="note" style="margin-top:16px">Compte responsable : identifiant labo@123. Le mot de passe est vérifié par Supabase Auth et doit être défini dans Supabase. Les demandes employés restent en attente jusqu’à validation.</p>
+  </div>
+ </div>
+</div>
+
+<header><h1>🧪 Suivi quotidien des contrôles qualité (CQ)</h1><p>Liste à cocher · Saisie groupée · Unités et spécialités · Historique et tableau de bord</p></header>
+<main>
+
+<div id="currentUserBar" class="no-print">
+ <span class="user-chip">👤 <span id="signedInName">—</span> · <strong id="signedInRole">—</strong></span>
+ <button class="secondary" id="logoutBtn">Déconnexion</button>
+</div>
+<section id="employeeAdminPanel" class="card no-print">
+ <div class="toolbar"><div><h2>👥 Gestion des employés — Responsable uniquement</h2><div class="note">Approuvez les demandes d’inscription et gérez les comptes employés.</div></div><span class="pill" id="pendingCount">0 demande en attente</span></div>
+ <div class="grid">
+  <div class="field"><label for="adminFirst">Prénom</label><input id="adminFirst" placeholder="Prénom"></div>
+  <div class="field"><label for="adminLast">Nom</label><input id="adminLast" placeholder="Nom"></div>
+  <div class="field"><label for="adminEmail">E-mail</label><input id="adminEmail" type="email" placeholder="employe@exemple.com"></div>
+  <div class="field"><label for="adminPass">Mot de passe provisoire</label><input id="adminPass" type="password" minlength="8" placeholder="8 caractères minimum"></div>
+ </div>
+ <div class="actions"><button class="primary" id="adminAddEmployee">Créer un compte employé</button></div>
+ <h3 style="margin-top:22px">Demandes d’inscription à valider</h3><div id="pendingUsers"></div>
+ <h3 style="margin-top:22px">Comptes employés</h3><div id="approvedUsers"></div>
+ <p class="note">Les comptes et demandes sont enregistrés dans Supabase. Les inscriptions apparaissent ici après exécution du script SQL de configuration. Les e-mails de notification automatiques nécessitent un service e-mail séparé.</p>
+</section>
+
+<section class="card no-print">
+ <div class="grid">
+  <div class="field"><label for="workDate">Date de travail</label><input type="date" id="workDate"></div>
+  <div class="field"><label for="technician">Technicien</label><input id="technician" placeholder="Nom et prénom"></div>
+  <div class="field"><label for="unitFilter">Unité</label><select id="unitFilter"><option value="">Toutes les unités</option></select></div>
+  <div class="field"><label for="specialtyFilter">Spécialité</label><select id="specialtyFilter"><option value="">Toutes les spécialités</option></select></div>
+ </div>
+ <div class="actions"><button class="primary" id="loadDay">Charger les CQ du jour</button><button class="secondary" id="addTemplate">Ajouter une analyse / un automate</button><button class="secondary" id="printBtn">Imprimer la liste</button></div>
+ <p class="note">Les analyses ci-dessous sont des exemples modifiables. Remplacez-les par la liste réelle de votre laboratoire. Les résultats ne sont pas préremplis comme conformes.</p>
+</section>
+<div class="tabs no-print">
+ <button class="tab active" data-tab="daily">☑ Liste quotidienne</button>
+ <button class="tab" data-tab="dashboard">📊 Tableau de bord</button>
+ <button class="tab" data-tab="history">📋 Historique</button>
+ <button class="tab" data-tab="settings">⚙️ Paramètres des analyses</button>
+</div>
+<section id="daily" class="panel active">
+ <div class="stats">
+  <div class="stat"><span>Contrôles prévus</span><strong id="sPlanned">0</strong></div>
+  <div class="stat green"><span>Contrôles enregistrés</span><strong id="sSaved">0</strong></div>
+  <div class="stat yellow"><span>À terminer</span><strong id="sPending">0</strong></div>
+  <div class="stat red"><span>Non conformes</span><strong id="sBad">0</strong></div>
+ </div>
+ <div class="card">
+  <div class="toolbar"><div><h2 style="margin-bottom:3px">Liste à cocher des CQ</h2><div class="note">Cochez les niveaux réellement effectués, puis choisissez le résultat de chaque niveau.</div></div><span class="pill" id="dayLabel"></span></div>
+  <div class="actions no-print" style="margin:0 0 12px"><button class="secondary" id="selectAll">Cocher tous les niveaux CQ</button><button class="secondary" id="clearChecks">Décocher tout</button><button class="success" id="markGood">Marquer les lignes sélectionnées « Bon »</button><button class="primary" id="saveAll">💾 Enregistrer tous les CQ cochés</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Unité / spécialité</th><th>Analyse</th><th>Appareil</th><th>CQ1 effectué</th><th>Résultat CQ1</th><th>CQ2 effectué</th><th>Résultat CQ2</th><th>CQE effectué</th><th>Résultat CQE</th><th>Remarque / action</th></tr></thead><tbody id="dailyRows"></tbody></table></div>
+  <p class="note">Règle de sécurité : une case cochée signifie que le contrôle a été effectué. Un résultat doit être choisi séparément. Un contrôle non coché reste non effectué et n'est jamais déclaré conforme automatiquement.</p>
+ </div>
+</section>
+<section id="dashboard" class="panel">
+ <div class="stats">
+  <div class="stat"><span>Total des enregistrements</span><strong id="dTotal">0</strong></div>
+  <div class="stat green"><span>Résultats « Bon »</span><strong id="dGood">0</strong></div>
+  <div class="stat red"><span>Résultats « Pas bon »</span><strong id="dBad">0</strong></div>
+  <div class="stat yellow"><span>Recalibrations</span><strong id="dRecal">0</strong></div>
+ </div>
+ <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-bottom:16px">
+  <div class="card"><h2>📈 Résultats par unité</h2><div id="unitSummary"><p class="note">Les statistiques apparaîtront après l’enregistrement des CQ.</p></div></div>
+  <div class="card"><h2>🎯 Indicateurs qualité</h2><div id="qualitySummary"><p class="note">Aucun résultat disponible.</p></div></div>
+ </div>
+ <div class="card"><div class="toolbar"><div><h2 style="margin-bottom:3px">Résumé de la journée sélectionnée</h2><div class="note">Vue synthétique des contrôles enregistrés pour la date choisie.</div></div><button class="secondary no-print" id="dashboardRefresh">↻ Actualiser</button></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Unité</th><th>Spécialité</th><th>Analyse</th><th>Appareil</th><th>Niveau</th><th>Résultat</th><th>Technicien</th><th>Remarque</th></tr></thead><tbody id="dashboardRows"></tbody></table></div></div>
+</section>
+<section id="history" class="panel">
+ <div class="card"><h2>Historique des contrôles</h2>
+  <div class="grid no-print">
+   <div class="field"><label for="histDate">Date</label><input type="date" id="histDate"></div>
+   <div class="field"><label for="histSearch">Recherche analyse / appareil</label><input id="histSearch" placeholder="Saisir un mot"></div>
+   <div class="field"><label for="histResult">Résultat</label><select id="histResult"><option value="">Tous</option><option>Bon</option><option>Pas bon</option><option>Recalibration</option></select></div>
+   <div class="field"><label for="histUnit">Unité</label><select id="histUnit"><option value="">Toutes</option></select></div>
+  </div>
+  <div class="actions no-print"><button class="secondary" id="clearFilters">Effacer les filtres</button><button class="secondary" id="exportCsv">Exporter CSV</button><button class="secondary" id="printHistory">Imprimer</button></div>
+  <div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Date</th><th>Unité</th><th>Spécialité</th><th>Analyse</th><th>Appareil</th><th>Niveau</th><th>Résultat</th><th>Technicien</th><th>Remarque</th><th class="no-print">Action</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+  <p id="historyCount" class="note"></p>
+ </div>
+</section>
+<section id="settings" class="panel">
+ <div class="card"><h2>Ajouter une analyse à la liste quotidienne</h2>
+  <form id="templateForm" class="grid">
+   <div class="field"><label for="tUnit">Unité *</label><input id="tUnit" required placeholder="Ex. Biochimie"></div>
+   <div class="field"><label for="tSpecialty">Spécialité *</label><input id="tSpecialty" required placeholder="Ex. Biochimie générale"></div>
+   <div class="field"><label for="tAnalysis">Analyse *</label><input id="tAnalysis" required placeholder="Ex. Glycémie"></div>
+   <div class="field"><label for="tMachine">Appareil *</label><input id="tMachine" required placeholder="Ex. Mindray BS-200"></div>
+   <div class="field"><label for="tLevels">Niveaux utilisés</label><select id="tLevels"><option value="CQ1,CQ2">CQ1 + CQ2</option><option value="CQ1">CQ1 seulement</option><option value="CQ1,CQ2,CQE">CQ1 + CQ2 + CQE</option><option value="CQ2,CQE">CQ2 + CQE</option></select></div>
+   <div class="field"><label for="tActive">État</label><select id="tActive"><option value="yes">Actif</option><option value="no">Inactif</option></select></div>
+   <div class="field" style="align-self:end"><button class="primary" type="submit">Ajouter à la liste</button></div>
+  </form>
+ </div>
+ <div class="card"><h2>Analyses et appareils enregistrés</h2><div class="tablewrap"><table><thead><tr><th>Unité</th><th>Spécialité</th><th>Analyse</th><th>Appareil</th><th>Niveaux</th><th>État</th><th>Action</th></tr></thead><tbody id="templateRows"></tbody></table></div><div class="actions"><button class="secondary" id="restoreExamples">Restaurer les exemples</button><button class="danger" id="clearRecords">Effacer tout l’historique</button></div><p class="note">Les analyses et l’historique sont enregistrés dans Supabase et partagés entre les postes autorisés. Les comptes nécessitent le script SQL fourni avec cette version.</p></div>
+</section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+</body>
+</html>
